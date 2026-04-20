@@ -1,0 +1,17 @@
+[Unit]
+Description=Fat Burning MCP Bridge
+After=network.target
+
+[Service]
+Type=simple
+User=fat-burning-mcp
+WorkingDirectory=/opt/fat-burning-mcp
+ExecStart=/opt/fat-burning-mcp/FatBurner.Mcp
+EnvironmentFile=/etc/fat-burning-mcp/env
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://localhost:2137
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

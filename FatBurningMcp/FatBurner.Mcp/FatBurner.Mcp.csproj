@@ -14,5 +14,4 @@
     <ItemGroup>
       <ProjectReference Include="..\FatBurner.Strava\FatBurner.Strava.csproj" />
     </ItemGroup>
-
 </Project>
