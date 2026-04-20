@@ -7,7 +7,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SOLUTION_PATH="$SCRIPT_DIR/../../.."
+SOLUTION_PATH="$SCRIPT_DIR/../.."
 PUBLISH_DIR="/tmp/fat-burning-mcp-publish"
 INSTALL_DIR="/opt/fat-burning-mcp"
 SERVICE_NAME="fat-burning-mcp"
