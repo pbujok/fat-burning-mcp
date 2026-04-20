@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using FatBurner.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -15,8 +16,21 @@ public class StravaActivitiesReader(HttpClient httpClient, IOptions<StravaOption
     public async Task<IReadOnlyCollection<FatBurningActivity>> GetFatBurningActivitiesAsync(DateTimeOffset dateAfter)
     {
         var accessToken = await GetAccessTokenAsync();
-        
-        var after = dateAfter.ToUnixTimeSeconds();
+
+        var summaries = await FetchActivitiesListAsync(accessToken, dateAfter.ToUnixTimeSeconds());
+
+        var result = new List<FatBurningActivity>(summaries.Count);
+        foreach (var summary in summaries)
+        {
+            var details = await FetchActivityDetailsAsync(accessToken, summary.Id);
+            result.Add(MapToFatBurningActivity(summary, details));
+        }
+
+        return result;
+    }
+
+    private async Task<List<StravaActivitySummary>> FetchActivitiesListAsync(string accessToken, long after)
+    {
         using var request = new HttpRequestMessage(HttpMethod.Get,
             $"https://www.strava.com/api/v3/athlete/activities?after={after}&page=1&per_page=100");
         request.Headers.Authorization = new("Bearer", accessToken);
@@ -24,9 +38,19 @@ public class StravaActivitiesReader(HttpClient httpClient, IOptions<StravaOption
         var response = await httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
 
-        var activities = await response.Content.ReadFromJsonAsync<List<StravaActivity>>(JsonOptions) ?? [];
+        return await response.Content.ReadFromJsonAsync<List<StravaActivitySummary>>(JsonOptions) ?? [];
+    }
 
-        return activities.Select(MapToFatBurningActivity).ToList();
+    private async Task<JsonObject> FetchActivityDetailsAsync(string accessToken, long id)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            $"https://www.strava.com/api/v3/activities/{id}?include_all_efforts=true");
+        request.Headers.Authorization = new("Bearer", accessToken);
+
+        var response = await httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadFromJsonAsync<JsonObject>(JsonOptions) ?? [];
     }
 
     private async Task<string> GetAccessTokenAsync()
@@ -50,34 +74,21 @@ public class StravaActivitiesReader(HttpClient httpClient, IOptions<StravaOption
         return token.AccessToken;
     }
 
-    private static FatBurningActivity MapToFatBurningActivity(StravaActivity activity)
+    private static FatBurningActivity MapToFatBurningActivity(StravaActivitySummary summary, JsonObject details)
     {
-        var startDate = DateTime.Parse(activity.StartDate, null, System.Globalization.DateTimeStyles.RoundtripKind);
+        var startDate = DateTime.Parse(summary.StartDate, null, System.Globalization.DateTimeStyles.RoundtripKind);
 
         return new FatBurningActivity(
-            ActivityId: activity.Id.ToString(),
-            Title: activity.Name,
-            Activity: activity.SportType,
+            ActivityId: summary.Id.ToString(),
+            Title: summary.Name,
+            Activity: summary.SportType,
             Date: startDate.Date,
             TimeOfActivity: TimeOnly.FromDateTime(startDate.ToLocalTime()),
-            Distance: Math.Round((decimal)activity.Distance / 1000, 2),
-            SerializedDetails: JsonSerializer.Serialize(activity, JsonOptions));
+            Distance: Math.Round((decimal)summary.Distance / 1000, 2),
+            SerializedDetails: details.ToJsonString(JsonOptions));
     }
 
     private record StravaTokenResponse(string AccessToken, string TokenType, int ExpiresAt, string RefreshToken);
 
-    private record StravaActivity(
-        long Id,
-        string Name,
-        string SportType,
-        string StartDate,
-        float Distance,
-        int MovingTime,
-        int ElapsedTime,
-        float TotalElevationGain,
-        float AverageSpeed,
-        float MaxSpeed,
-        float? AverageHeartrate,
-        float? MaxHeartrate,
-        float? Calories);
+    private record StravaActivitySummary(long Id, string Name, string SportType, string StartDate, float Distance);
 }
