@@ -4,7 +4,8 @@ using ModelContextProtocol.Protocol;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddTransient<IFatBurningActivityReader, StravaActivitiesReader>();
+builder.Services.Configure<StravaOptions>(builder.Configuration.GetSection("Strava"));
+builder.Services.AddHttpClient<IFatBurningActivityReader, StravaActivitiesReader>();
 
 builder.Services.AddMcpServer(options => 
     {
@@ -21,5 +22,11 @@ builder.Services.AddMcpServer(options =>
 var app = builder.Build();
 
 app.MapMcp("/mcp");
+
+app.MapGet("/items", async (IFatBurningActivityReader reader) =>
+{
+    var activities = await reader.GetFatBurningActivitiesAsync();
+    return Results.Ok(activities);
+});
 
 app.Run();
