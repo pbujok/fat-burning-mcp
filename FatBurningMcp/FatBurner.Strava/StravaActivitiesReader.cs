@@ -12,13 +12,13 @@ public class StravaActivitiesReader(HttpClient httpClient, IOptions<StravaOption
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
     };
 
-    public async Task<IReadOnlyCollection<FatBurningActivity>> GetFatBurningActivitiesAsync()
+    public async Task<IReadOnlyCollection<FatBurningActivity>> GetFatBurningActivitiesAsync(DateTimeOffset dateAfter)
     {
         var accessToken = await GetAccessTokenAsync();
-
-        var after = DateTimeOffset.UtcNow.AddDays(-7).ToUnixTimeSeconds();
+        
+        var after = dateAfter.ToUnixTimeSeconds();
         using var request = new HttpRequestMessage(HttpMethod.Get,
-            $"https://www.strava.com/api/v3/athlete/activities?after={after}&per_page=100");
+            $"https://www.strava.com/api/v3/athlete/activities?after={after}&page=1&per_page=100");
         request.Headers.Authorization = new("Bearer", accessToken);
 
         var response = await httpClient.SendAsync(request);
@@ -55,6 +55,7 @@ public class StravaActivitiesReader(HttpClient httpClient, IOptions<StravaOption
         var startDate = DateTime.Parse(activity.StartDate, null, System.Globalization.DateTimeStyles.RoundtripKind);
 
         return new FatBurningActivity(
+            ActivityId: activity.Id.ToString(),
             Title: activity.Name,
             Activity: activity.SportType,
             Date: startDate.Date,

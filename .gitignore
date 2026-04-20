@@ -416,3 +416,7 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+.idea
+/FatBurningMcp/FatBurner.Mcp/fat-burning.db-wal
+/FatBurningMcp/FatBurner.Mcp/fat-burning.db
+/FatBurningMcp/FatBurner.Mcp/fat-burning.db-shm

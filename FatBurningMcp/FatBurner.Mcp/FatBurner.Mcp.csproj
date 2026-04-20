@@ -4,11 +4,13 @@
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+        <UserSecretsId>fdc87ca0-49f9-48fa-889b-f4e8505e45f5</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="ModelContextProtocol" Version="1.2.0" />
       <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.2.0" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
     </ItemGroup>
 
     <ItemGroup>

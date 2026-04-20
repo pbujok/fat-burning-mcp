@@ -1,6 +1,7 @@
 ﻿namespace FatBurner.Abstractions;
 
 public record FatBurningActivity(
+    string ActivityId,
     string Title,
     string Activity,
     DateTime Date,
