@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build *)",
+      "Bash(timeout 10 dotnet run --project FatBurner.Mcp/FatBurner.Mcp.csproj)",
+      "Bash(curl *)",
+      "Bash(dotnet run *)",
+      "Bash(kill %1)",
+      "Bash(xargs cat *)"
+    ]
+  }
+}
