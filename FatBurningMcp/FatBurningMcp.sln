@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FatBurner.Strava", "FatBurn
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FatBurner.Abstractions", "FatBurner.Abstractions\FatBurner.Abstractions.csproj", "{DD9716FE-F9FC-4FE2-AA00-5433E5DF366E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FatBurner.Garmin.Tests", "FatBurner.Garmin.Tests\FatBurner.Garmin.Tests.csproj", "{629F9635-0B59-4540-9DD8-34478207B237}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Providers", "Providers", "{11A9243B-DA82-498D-AFFE-D01DA3572AC0}"
 EndProject
 Global
@@ -26,6 +28,10 @@ Global
 		{DD9716FE-F9FC-4FE2-AA00-5433E5DF366E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DD9716FE-F9FC-4FE2-AA00-5433E5DF366E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DD9716FE-F9FC-4FE2-AA00-5433E5DF366E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{629F9635-0B59-4540-9DD8-34478207B237}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{629F9635-0B59-4540-9DD8-34478207B237}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{629F9635-0B59-4540-9DD8-34478207B237}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{629F9635-0B59-4540-9DD8-34478207B237}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{792B0915-E338-4294-9038-3F885B954ADA} = {11A9243B-DA82-498D-AFFE-D01DA3572AC0}

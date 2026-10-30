@@ -1,0 +1,21 @@
+services:
+  fat-burning-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:${HOST_PORT:-8137}:8080"
+    environment:
+      ActivityProvider: "${ACTIVITY_PROVIDER:-Strava}"
+      ConnectionStrings__ActivityCache: "Data Source=/data/fat-burning.db"
+      ConnectionStrings__GarminActivityCache: "Data Source=/data/garmin-activity.db"
+      Strava__ClientId: "${STRAVA_CLIENT_ID:-}"
+      Strava__ClientSecret: "${STRAVA_CLIENT_SECRET:-}"
+      Strava__RefreshToken: "${STRAVA_REFRESH_TOKEN:-}"
+      Garmin__ApiKey: "${GARMIN_API_KEY:-}"
+    volumes:
+      - activity-data:/data
+    restart: unless-stopped
+
+volumes:
+  activity-data:
