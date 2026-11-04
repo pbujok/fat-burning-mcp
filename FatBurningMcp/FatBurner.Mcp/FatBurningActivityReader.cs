@@ -14,4 +14,19 @@ public class FatBurningActivityReader(IFatBurningActivityReader reader, IActivit
 
         return await cache.GetCachedActivitiesAsync(dateFrom);
     }
+
+    public async Task<ActivityStreams?> GetActivityStreamsAsync(string activityId, int? maxPoints = null)
+    {
+        var streams = await cache.GetCachedStreamsAsync(activityId);
+        if (streams is null)
+        {
+            streams = await reader.GetActivityStreamsAsync(activityId);
+            if (streams is null)
+                return null;
+
+            await cache.CacheStreamsAsync(streams);
+        }
+
+        return maxPoints is { } points ? streams.Downsample(points) : streams;
+    }
 }

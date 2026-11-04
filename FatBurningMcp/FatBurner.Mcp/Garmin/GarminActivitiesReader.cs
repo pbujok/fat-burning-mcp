@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -33,6 +34,27 @@ public class GarminActivitiesReader(HttpClient httpClient, IOptions<GarminOption
         }
 
         return result;
+    }
+
+    public async Task<ActivityStreams?> GetActivityStreamsAsync(string activityId)
+    {
+        if (!long.TryParse(activityId, NumberStyles.None, CultureInfo.InvariantCulture, out var id))
+            throw new ArgumentException($"'{activityId}' is not a valid Garmin activity id.", nameof(activityId));
+
+        var accessToken = await GetAccessTokenAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            $"{ApiBaseUrl}/download-service/files/activity/{id.ToString(CultureInfo.InvariantCulture)}");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/x-zip-compressed"));
+
+        using var response = await httpClient.SendAsync(request);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return null;
+
+        response.EnsureSuccessStatusCode();
+
+        return FitActivityDecoder.Decode(activityId, await response.Content.ReadAsByteArrayAsync());
     }
 
     private async Task<List<GarminActivitySummary>> FetchActivitiesListAsync(string accessToken, DateTimeOffset dateAfter)

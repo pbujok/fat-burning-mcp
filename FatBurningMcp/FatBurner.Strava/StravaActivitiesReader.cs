@@ -29,6 +29,9 @@ public class StravaActivitiesReader(HttpClient httpClient, IOptions<StravaOption
         return result;
     }
 
+    public Task<ActivityStreams?> GetActivityStreamsAsync(string activityId) =>
+        throw new NotSupportedException("Activity streams are only available from the Garmin provider.");
+
     private async Task<List<StravaActivitySummary>> FetchActivitiesListAsync(string accessToken, long after)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get,

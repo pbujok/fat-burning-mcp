@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using FatBurner.Abstractions;
 using FatBurner.Mcp.Garmin;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -116,6 +117,136 @@ public class GarminActivitiesReaderTests
             () => reader.GetFatBurningActivitiesAsync(DateTimeOffset.UtcNow.AddDays(-1)));
     }
 
+    [Fact]
+    public async Task DownloadsActivityFileAndDecodesSamplesFromZip()
+    {
+        var handler = new RecordingHandler(request => request.Method == HttpMethod.Post
+            ? TextResponse("test-access-token")
+            : BinaryResponse(FitTestFiles.Zip(FitTestFiles.TwoSamples())));
+        using var client = new HttpClient(handler);
+
+        var streams = await CreateReader(client).GetActivityStreamsAsync("42");
+
+        var download = handler.Requests[1];
+        Assert.Equal("/download-service/files/activity/42", download.Uri.AbsolutePath);
+        Assert.Equal("Bearer test-access-token", download.Authorization);
+        Assert.Equal("application/x-zip-compressed", download.Accept);
+
+        Assert.NotNull(streams);
+        Assert.Equal("42", streams.ActivityId);
+        Assert.Equal(2, streams.TotalSamples);
+        Assert.Equal(FitTestFiles.Start, streams.Timestamps[0]);
+        Assert.Equal(DateTimeKind.Utc, streams.Timestamps[0].Kind);
+        Assert.Equal(FitTestFiles.Start.AddSeconds(1), streams.Timestamps[1]);
+        Assert.Equal(52.229676, Value(streams, 0, "Latitude"));
+        Assert.Equal(21.012229, Value(streams, 0, "Longitude"));
+        Assert.Equal(150, Value(streams, 0, "HeartRate"));
+        Assert.Equal(80, Value(streams, 0, "Cadence"));
+        Assert.Equal(3.2, Value(streams, 0, "EnhancedSpeed"));
+        Assert.Equal(151, Value(streams, 1, "HeartRate"));
+    }
+
+    [Fact]
+    public async Task MissingValuesInASampleAreNull()
+    {
+        var handler = new RecordingHandler(request => request.Method == HttpMethod.Post
+            ? TextResponse("test-access-token")
+            : BinaryResponse(FitTestFiles.TwoSamples()));
+        using var client = new HttpClient(handler);
+
+        var streams = await CreateReader(client).GetActivityStreamsAsync("42");
+
+        Assert.NotNull(streams);
+        Assert.Null(Value(streams, 1, "Latitude"));
+        Assert.Null(Value(streams, 1, "Longitude"));
+        Assert.Null(Value(streams, 1, "Cadence"));
+        Assert.Null(Value(streams, 1, "EnhancedSpeed"));
+        Assert.Equal(151, Value(streams, 1, "HeartRate"));
+    }
+
+    [Fact]
+    public async Task IncludesDeveloperFields()
+    {
+        var handler = new RecordingHandler(request => request.Method == HttpMethod.Post
+            ? TextResponse("test-access-token")
+            : BinaryResponse(FitTestFiles.WithDeveloperField("Stryd Power", 200)));
+        using var client = new HttpClient(handler);
+
+        var streams = await CreateReader(client).GetActivityStreamsAsync("42");
+
+        Assert.NotNull(streams);
+        Assert.Equal(200, Value(streams, 0, "Stryd Power"));
+    }
+
+    [Fact]
+    public async Task ReturnsNullWhenActivityHasNoFile()
+    {
+        var handler = new RecordingHandler(request => request.Method == HttpMethod.Post
+            ? TextResponse("test-access-token")
+            : new HttpResponseMessage(HttpStatusCode.NotFound));
+        using var client = new HttpClient(handler);
+
+        Assert.Null(await CreateReader(client).GetActivityStreamsAsync("42"));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("<?xml version=\"1.0\"?><gpx></gpx>")]
+    public async Task ReturnsNullWhenFileIsNotFit(string content)
+    {
+        var handler = new RecordingHandler(request => request.Method == HttpMethod.Post
+            ? TextResponse("test-access-token")
+            : BinaryResponse(Encoding.UTF8.GetBytes(content)));
+        using var client = new HttpClient(handler);
+
+        Assert.Null(await CreateReader(client).GetActivityStreamsAsync("42"));
+    }
+
+    [Fact]
+    public async Task ReturnsNullWhenZipHasNoFitFile()
+    {
+        var handler = new RecordingHandler(request => request.Method == HttpMethod.Post
+            ? TextResponse("test-access-token")
+            : BinaryResponse(FitTestFiles.Zip(Encoding.UTF8.GetBytes("<gpx/>"), "activity.gpx")));
+        using var client = new HttpClient(handler);
+
+        Assert.Null(await CreateReader(client).GetActivityStreamsAsync("42"));
+    }
+
+    [Fact]
+    public async Task ThrowsForCorruptedFitFile()
+    {
+        var corrupted = FitTestFiles.TwoSamples();
+        corrupted[^6] ^= 0xFF;
+        var handler = new RecordingHandler(request => request.Method == HttpMethod.Post
+            ? TextResponse("test-access-token")
+            : BinaryResponse(corrupted));
+        using var client = new HttpClient(handler);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => CreateReader(client).GetActivityStreamsAsync("42"));
+    }
+
+    [Theory]
+    [InlineData("../../userprofile-service/userprofile/settings")]
+    [InlineData("-1")]
+    [InlineData("")]
+    public async Task RejectsInvalidActivityIdWithoutCallingGarmin(string activityId)
+    {
+        var handler = new RecordingHandler(_ => TextResponse("test-access-token"));
+        using var client = new HttpClient(handler);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => CreateReader(client).GetActivityStreamsAsync(activityId));
+        Assert.Empty(handler.Requests);
+    }
+
+    private static double? Value(ActivityStreams streams, int row, string column) =>
+        streams.Rows[row][streams.Columns.ToList().IndexOf(column)];
+
+    private static HttpResponseMessage BinaryResponse(byte[] content) => new(HttpStatusCode.OK)
+    {
+        Content = new ByteArrayContent(content)
+    };
+
     private static GarminActivitiesReader CreateReader(HttpClient client) =>
         new(client, Options.Create(new GarminOptions { ApiKey = "secret-key" }));
 
@@ -153,10 +284,10 @@ public class GarminActivitiesReaderTests
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            Requests.Add(new RequestRecord(request.RequestUri!, request.Headers.Authorization?.ToString()));
+            Requests.Add(new RequestRecord(request.RequestUri!, request.Headers.Authorization?.ToString(), request.Headers.Accept.ToString()));
             return Task.FromResult(respond(request));
         }
     }
 
-    private sealed record RequestRecord(Uri Uri, string? Authorization);
+    private sealed record RequestRecord(Uri Uri, string? Authorization, string Accept);
 }

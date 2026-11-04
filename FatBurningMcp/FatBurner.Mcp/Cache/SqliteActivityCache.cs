@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FatBurner.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
@@ -42,5 +43,23 @@ public class SqliteActivityCache(ActivityCacheDbContext context) : IActivityCach
         }
 
         await context.SaveChangesAsync();
+    }
+
+    public async Task<ActivityStreams?> GetCachedStreamsAsync(string activityId)
+    {
+        var serialized = await context.ActivityStreams
+            .Where(s => s.ActivityId == activityId)
+            .Select(s => s.SerializedStreams)
+            .FirstOrDefaultAsync();
+
+        return serialized is null ? null : JsonSerializer.Deserialize<ActivityStreams>(serialized);
+    }
+
+    // OR IGNORE: parallel tool calls can fetch the same activity, and both results are identical.
+    public async Task CacheStreamsAsync(ActivityStreams streams)
+    {
+        var serialized = JsonSerializer.Serialize(streams);
+        await context.Database.ExecuteSqlInterpolatedAsync(
+            $"""INSERT OR IGNORE INTO "ActivityStreams" ("ActivityId", "SerializedStreams") VALUES ({streams.ActivityId}, {serialized})""");
     }
 }

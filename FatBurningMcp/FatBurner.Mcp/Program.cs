@@ -50,7 +50,7 @@ builder.Services.AddMcpServer(options =>
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
-    scope.ServiceProvider.GetRequiredService<ActivityCacheDbContext>().Database.EnsureCreated();
+    scope.ServiceProvider.GetRequiredService<ActivityCacheDbContext>().EnsureSchema();
 
 app.MapMcp("/mcp");
 
@@ -58,6 +58,12 @@ app.MapGet("/items", async (FatBurningActivityReader reader) =>
 {
     var activities = await reader.GetFatBurningActivitiesAsync();
     return Results.Ok(activities);
+});
+
+app.MapGet("/items/{activityId:long}/streams", async (long activityId, int? maxPoints, FatBurningActivityReader reader) =>
+{
+    var streams = await reader.GetActivityStreamsAsync(activityId.ToString(), maxPoints);
+    return streams is null ? Results.NotFound() : Results.Ok(streams);
 });
 
 app.Run();
